@@ -13,11 +13,11 @@ import numpy as np
 
 def load_ground_truth_clusters(path):
     with open(path, 'r') as f:
-        clusters_content = f.read().splitlines()
+        clusters_content = filter(lambda x: x.strip(), f.read().splitlines())
     cluster_id = 0
     clusters = defaultdict(list)
     for line in clusters_content:
-        if line != "##########" and line.strip():
+        if line != "##########":
             clusters[cluster_id].append(line)
         else:
             cluster_id += 1
@@ -94,6 +94,17 @@ def compute_stats(gt_clusters, pred_clusters):
     return precision, recall, f1
 
 
+def generate_clusters(labels, lines, output_path):
+    clusters = defaultdict(list)
+    for label, line in zip(labels, lines):
+        clusters[label].append(line)
+
+    with open(output_path, 'w') as f:
+        for _, lines in clusters.iteritems():
+            f.write('\n'.join(lines))
+            f.write('\n##########\n')
+
+
 if __name__ == "__main__":
     gt_clusters = load_ground_truth_clusters('data/clusters.txt')
     n_clusters = len(gt_clusters.keys())
@@ -128,3 +139,7 @@ if __name__ == "__main__":
     print "Precision: %f" % precision
     print "Recall: %f" % recall
     print "F1 score: %f" % f1
+
+    lines = [line for cluster_id in sorted(gt_clusters.keys()) for line in sorted(gt_clusters[cluster_id])]
+
+    generate_clusters(kmeans.labels_, lines, 'data/pred_clusters.txt')
