@@ -1,7 +1,7 @@
 from collections import defaultdict
 from gensim.models import Word2Vec
 import re
-from sklearn.cluster import AffinityPropagation
+from sklearn.cluster import AffinityPropagation, KMeans
 from nltk import tokenize
 import time
 import operator
@@ -109,16 +109,21 @@ if __name__ == "__main__":
     representation_per_line = [sen2vec(line) for cluster_id in sorted(gt_clusters.keys()) for line in
                                sorted(gt_clusters[cluster_id])]
 
-    kmeans = KMeansClusterer(n_clusters, angular_dist, repeats=5)
+    kmeans = KMeans(n_init=n_clusters, precompute_distances=True, verbose=2, n_jobs=4)
+
+    # kmeans = KMeansClusterer(n_clusters, angular_dist, repeats=5)
 
     print "Clustering..."
     start = time.time()
-    pred_clusters = kmeans.cluster(representation_per_line, True)
+    # pred_clusters = kmeans.cluster(representation_per_line, True, True)
+
+    kmeans.fit(representation_per_line)
+
     end = time.time()
     print "Clustering took %f seconds" % (end - start)
     print "Computing stats..."
 
-    precision, recall, f1 = compute_stats(gt_clusters, pred_clusters)
+    precision, recall, f1 = compute_stats(gt_clusters, kmeans.labels_)
 
     print "Precision: %f" % precision
     print "Recall: %f" % recall
