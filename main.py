@@ -3,6 +3,7 @@ from gensim.models import Word2Vec
 import re
 from sklearn.cluster import AffinityPropagation
 from nltk import tokenize
+import operator
 from nltk.cluster import KMeansClusterer
 import theano
 import theano.tensor as T
@@ -25,10 +26,6 @@ def load_ground_truth_clusters(path):
 def load_data(path):
     with open(path, 'r') as f:
         return f.read().splitlines()
-
-
-def compute_stats(targets, predictions):
-    pass
 
 
 class SentenceToVec(object):
@@ -78,20 +75,43 @@ class AngularDistance(object):
         return self.tf_distance(u, v)
 
 
+def compute_stats(gt_clusters, pred_clusters):
+    tp, fp, fn = 0., 0., 0.
+    start = 0
+    pred_clusters = np.array(pred_clusters)
+    for cluster_id in sorted(gt_clusters.keys()):
+        nb_of_items_in_cluster = len(gt_clusters[cluster_id])
+        end = start + nb_of_items_in_cluster
+        selected_items = pred_clusters[start:end]
+        pred_cluster_id, max_value = max(enumerate(np.bincount(selected_items)), key=operator.itemgetter(1))
+        tp += max_value
+        fp += (pred_clusters[:start] == pred_cluster_id).sum() + (pred_clusters[end:] == pred_cluster_id).sum()
+        fn += nb_of_items_in_cluster - max_value
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+    return precision, recall, f1
+
+
 if __name__ == "__main__":
-    clusters = load_ground_truth_clusters('data/clusters.txt')
-    # n_clusters = len(clusters.keys())
-    n_clusters = 2
-    data = load_data('data/lines.txt')
+    gt_clusters = load_ground_truth_clusters('data/clusters.txt')
+    n_clusters = len(gt_clusters.keys())
+    # n_clusters = 2
+    # data = load_data('data/lines.txt')
 
     sen2vec = SentenceToVec('data/en.model')
 
     angular_dist = AngularDistance()
 
-    representation_per_line = [sen2vec(line) for line in data][:10]
+    representation_per_line = [sen2vec(line) for cluster_id in sorted(gt_clusters.keys()) for line in
+                               sorted(gt_clusters[cluster_id])]
 
     kmeans = KMeansClusterer(n_clusters, angular_dist, repeats=5)
 
-    clusters = kmeans.cluster(representation_per_line, True)
+    pred_clusters = kmeans.cluster(representation_per_line, True)
 
-    print clusters
+    precision, recall, f1 = compute_stats(gt_clusters, pred_clusters)
+
+    print "Precision: %f" % precision
+    print "Recall: %f" % recall
+    print "F1 score: %f" % f1
