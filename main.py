@@ -38,7 +38,7 @@ class SentenceToVec(object):
     def __call__(self, sentence):
         letters_only = re.sub('[^a-zA-Z]', ' ', sentence)
         words = letters_only.lower().split()
-        vec = np.zeros(1000)
+        vec = np.zeros(1000, dtype=theano.config.floatX)
         count = 0
         for word in words:
             try:
